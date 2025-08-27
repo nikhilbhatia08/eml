@@ -1,8 +1,10 @@
-package parser
+package test
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/nikhilbhatia08/eml/parser"
 )
 
 func equal(a, b []string) bool {
@@ -22,21 +24,21 @@ func equal(a, b []string) bool {
 func TestLines(t *testing.T) {
 	fmt.Println("Testing Lines")
 	line := "	h1:"
-	tokens := GetLineTokens(line)
+	tokens := parser.GetLineTokens(line)
 	expected := []string{"h1"}
 	if !equal(tokens, expected) {
 		t.Errorf("Expected %v, but got %v", expected, tokens)
 	}
 
 	line = "		styles:"
-	tokens = GetLineTokens(line)
+	tokens = parser.GetLineTokens(line)
 	expected = []string{"styles"}
 	if !equal(tokens, expected) {
 		t.Errorf("Expected %v, but got %v", expected, tokens)
 	}
 
 	line = "		text: 3xl"
-	tokens = GetLineTokens(line)
+	tokens = parser.GetLineTokens(line)
 	expected = []string{"text", "3xl"}
 	if !equal(tokens, expected) {
 		t.Errorf("Expected %v, but got %v", expected, tokens)
@@ -58,7 +60,7 @@ func TestParser(t *testing.T) {
 		"			v: Hello World",
 	}
 
-	root := GenerateAST(lines)
+	root := parser.GenerateAST(lines)
 	if root == nil {
 		t.Fatal("Failed to parse EHTML")
 	}

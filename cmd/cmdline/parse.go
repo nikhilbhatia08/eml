@@ -5,6 +5,7 @@ import (
 
 	"github.com/nikhilbhatia08/eml/cmd/executor"
 	"github.com/nikhilbhatia08/eml/parser"
+	"github.com/nikhilbhatia08/eml/codegen"
 )
 
 func ParseCommandLineArgs(args []string) {
@@ -23,7 +24,13 @@ func ParseCommandLineArgs(args []string) {
 		}else if arg1 == "run" {
 			executor.RunProject()
 		}else if arg1 == "compile" {
-			parser.Parser()
+			// parsing
+			root := parser.Parser()
+			// code generation
+			lines := codegen.GenerateHtmlCodeFromAST(root)
+			for _, line := range lines {
+				fmt.Println(line)
+			}
 		}
 	}
 }
