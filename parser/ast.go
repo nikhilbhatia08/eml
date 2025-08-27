@@ -4,11 +4,18 @@ import (
 	"github.com/nikhilbhatia08/eml/parser/utils"
 )
 
+type Target struct {
+	Path string
+	Root *Node
+	Imports []string
+}
+
 type Node struct {
 	Keyword  string
 	Info     *utils.OrderedMap[string, *utils.OrderedMap[string, string]] // Stores metadata about the node
 	NodeType int
 	TopLeveIndentation int
+	Imports []string
 	Children []*Node
 }
 

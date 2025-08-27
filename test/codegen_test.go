@@ -22,6 +22,22 @@ func equal1(a, b []string) bool {
 	return true
 }
 
+func TestExtension(t *testing.T) {
+	path := "components/primary/button.tsx"
+	expected := ".tsx"
+	if got := codegen.GetFileExtension(path); got != expected {
+		t.Errorf("GetBasePath(%q) = %q; want %q", path, got, expected)
+	}
+}
+
+func TestBasePath(t *testing.T) {
+	path := "components/primary/button.tsx"
+	expected := "button"
+	if got := codegen.GetBasePath(path); got != expected {
+		t.Errorf("GetBasePath(%q) = %q; want %q", path, got, expected)
+	}
+}
+
 func TestCodeGenTest(t *testing.T) {
 	lines := []string{
 		"div:",
@@ -35,24 +51,67 @@ func TestCodeGenTest(t *testing.T) {
 		"			v: Hello World",
 	}
 
-	root := parser.GenerateAST(lines)
+	root, _ := parser.GenerateAST(lines)
 	if root == nil {
 		t.Fatal("Failed to parse EHTML")
 	}
 
 	html := codegen.GenerateHtmlCodeFromAST(root)
 	expected := []string{
-		"<div",
-		">",
-		"	<h1",
-		"		className=\"text-3xl font-bold underline\"",
-		"	>",
-		"		Hello World",
-		"	</h1>",
-		"</div>",
+		"\t<div",
+		"\t>",
+		"\t	<h1",
+		"\t		className=\"text-3xl font-bold underline\"",
+		"\t	>",
+		"\t		Hello World",
+		"\t	</h1>",
+		"\t</div>",
 	}
 	if !equal1(html, expected) {
 		t.Errorf("Expected %v, but got %v", expected, html)
 	}
 	fmt.Println("Code Generation Test Passed")
+}
+
+func TestCombine(t *testing.T) {
+	lines := []string {
+		"\t<div",
+		"\t>",
+		"\t	<h1",
+		"\t		className=\"text-3xl font-bold underline\"",
+		"\t	>",
+		"\t		Hello World",
+		"\t	</h1>",
+		"\t</div>",
+	}
+
+	imports := []string {
+		"import Comp1 from \"./fellow\"",
+	}
+
+	path := "/some/Path.js"
+
+	combinedOutput := codegen.Combine(path, lines, imports)
+
+	expectedCombinedOutput := []string {
+		"import Comp1 from \"./fellow\"",
+		"function " + codegen.GetBasePath(path) + "(props) {",
+		"\treturn(",
+		"\t<div",
+		"\t>",
+		"\t	<h1",
+		"\t		className=\"text-3xl font-bold underline\"",
+		"\t	>",
+		"\t		Hello World",
+		"\t	</h1>",
+		"\t</div>",
+		"\t)",
+		"}",
+		"export default " + codegen.GetBasePath(path) + ";",
+	}
+
+	if !equal1(combinedOutput, expectedCombinedOutput) {
+		t.Errorf("Expected %v, but got %v", expectedCombinedOutput, combinedOutput)
+	}
+
 }

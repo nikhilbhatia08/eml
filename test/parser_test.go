@@ -49,6 +49,10 @@ func TestLines(t *testing.T) {
 func TestParser(t *testing.T) {
 	fmt.Println("Testing Parser")
 	lines := []string{
+		"import:",
+		"	Comp from ../hehe",
+		"	Comp3 from ./fellow",
+		"			",
 		"div:",
 		"	h1:",
 		"		styles:",
@@ -60,7 +64,7 @@ func TestParser(t *testing.T) {
 		"			v: Hello World",
 	}
 
-	root := parser.GenerateAST(lines)
+	root, imports := parser.GenerateAST(lines)
 	if root == nil {
 		t.Fatal("Failed to parse EHTML")
 	}
@@ -76,6 +80,11 @@ func TestParser(t *testing.T) {
 		"\t\tcontent:",
 		"\t\t\tv: Hello World",
 	}
+
+	expected_imports := []string {
+		"Comp from \"../hehe\"",
+		"Comp3 from \"./fellow\"",
+	}
 	if !equal(ehtml, expected) {
 		t.Errorf("Expected %v, but got %v", expected, ehtml)
 		for i := 0; i < len(ehtml); i++ {
@@ -83,6 +92,16 @@ func TestParser(t *testing.T) {
 		}
 		for i := 0; i < len(expected); i++ {
 			fmt.Println(expected[i])
+		}
+	}
+
+	if !equal(imports, expected_imports) {
+		t.Errorf("Expected %v, but got %v", expected_imports, imports)
+		for i := 0; i < len(imports); i++ {
+			fmt.Println(ehtml[i])
+		}
+		for i := 0; i < len(expected_imports); i++ {
+			fmt.Println(expected_imports[i])
 		}
 	}
 	// Passing message

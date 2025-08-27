@@ -2,8 +2,9 @@ package parser
 
 import (
 	"bufio"
-	"fmt"
 	"os"
+	"io/fs"
+	"path/filepath"
 	"unicode"
 
 	"github.com/nikhilbhatia08/eml/parser/utils"
@@ -20,24 +21,48 @@ import (
 // 2. font-bold(Represents bold text)
 // 3. underline(Represents underlined text)
 
-func Parser() *Node {
+func Parser() []Target {
 	// Get the lines in the main
 	// This can be improved for many files
-	lines := ParseFile("main.ehtml")
+	var targets []Target
 
-	root := GenerateAST(lines)
-	if root == nil {
-		fmt.Println("Compilation failed")
+	rootDir := "./" // starting path
+
+	// WalkDir will recursively go through all subdirectories
+	err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Only parse files that end with .ehtml
+		if !d.IsDir() && filepath.Ext(d.Name()) == ".ehtml" {
+			// fmt.Println("Parsing:", path)
+
+			lines := ParseFile(path) // parse file lines
+
+			root, imports := GenerateAST(lines)
+			if root == nil {
+				// There should be proper error message for this one 
+				// fmt.Println("Compilation failed for:", path)
+				return nil // skip, don’t stop parsing others
+			}
+
+			// fmt.Println("Compiled successfully:", path)
+
+			targets = append(targets, Target{
+				Path: path[:len(path)-6] + ".js",
+				Root: root,
+				Imports: imports,
+			})
+		}
 		return nil
+	})
+
+	if err != nil {
+		panic(err)
 	}
 
-	generatedEHTML := root.ConvertToEHTML(root)
-	fmt.Println("Generated EHTML:")
-	for _, line := range generatedEHTML {
-		fmt.Println(line)
-	}
-	fmt.Println("Compiled successfully")
-	return root
+	return targets
 }
 
 func ParseFile(filename string) []string {
@@ -61,9 +86,10 @@ func ParseFile(filename string) []string {
 
 // As soon as the context finishes we need to pop the stack
 
-func GenerateAST(lines []string) *Node {
+func GenerateAST(lines []string) (*Node, []string) {
 	// root := &Node{Children: []*Node{}}
 	stack := utils.Stack[*Node]{}
+	var imports []string
 	for _, line := range lines {
 		if line == "" {
 			continue
@@ -92,6 +118,8 @@ func GenerateAST(lines []string) *Node {
 						return true
 					})
 				}
+			}else if topNode.NodeType == IMPORT_TYPE {
+				imports = topNode.Imports
 			}
 		}
 		lineTokens := GetLineTokens(line)
@@ -104,7 +132,17 @@ func GenerateAST(lines []string) *Node {
 			// If it is empty it means that it has just started
 			tokenType := checkToken(lineTokens[0])
 			// fmt.Println(lineTokens[0], tokenType)
-			if tokenType != KEYWORD_TYPE {
+			if tokenType == IMPORT_TYPE {
+				newNode := &Node{
+					NodeType:     tokenType,
+					Keyword:    lineTokens[0],
+					Children: []*Node{},
+					TopLeveIndentation: spaces,
+					Info: utils.NewOrderedMap[string, *utils.OrderedMap[string, string]](),
+					Imports: make([]string, 0),
+				}
+				stack.Push(newNode)
+			}else if tokenType != KEYWORD_TYPE {
 				// We need to show some error here 
 			}else {
 				newNode := &Node{
@@ -165,7 +203,18 @@ func GenerateAST(lines []string) *Node {
 							// fmt.Println("SETTING:", lineTokens[0], "TO:", sentence, len(lineTokens))
 							inner.Set(lineTokens[0], sentence)
 						}
-					}else {
+					}else if topNode.NodeType == IMPORT_TYPE {
+						var import_string string
+						for i := 0; i < len(lineTokens); i++ {
+							if i == len(lineTokens) - 1 {
+								// because this is the path like for example "./some/path/App.js"
+								import_string += "\"" + lineTokens[i] + "\""
+							}else {
+								import_string += lineTokens[i] + " ";
+							}							
+						}
+						topNode.Imports = append(topNode.Imports, import_string)
+					} else {
 						// There should be error handling here
 					}
 				}
@@ -199,10 +248,10 @@ func GenerateAST(lines []string) *Node {
 	}
 
 	if !stack.IsEmpty() {
-		return stack.Peek()
+		return stack.Peek(), imports
 	}
 
-	return stack.Peek()
+	return stack.Peek(), imports
 }
 
 func checkToken(token string) int {
@@ -210,6 +259,8 @@ func checkToken(token string) int {
 		return KEYWORD_TYPE
 	}else if config[token] {
 		return CONFIG_TYPE
+	}else if import_s[token] {
+		return IMPORT_TYPE
 	}
 	return GENERAL_TYPE
 }
