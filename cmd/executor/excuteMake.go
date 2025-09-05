@@ -38,6 +38,12 @@ func ExecuteMakeCommand(nameOfProject string) string {
 		return "Error"
 	}
 
+	_, err = exec.Command("npm", "install", "react-router").Output()
+	if err != nil {
+		fmt.Println("Error executing command:", err)
+		return "Error"
+	}
+
 	os.Remove("tailwind.config.js")
 	// Creating Tailwind config file
 	WriteToTailwindConfig()
@@ -46,6 +52,9 @@ func ExecuteMakeCommand(nameOfProject string) string {
 	// Removing index.css to be rewritten
 	os.Remove("index.css")
 	WriteToIndexCss()
+
+	os.Remove("index.js")
+	WriteToIndexjs()
 	// Removing App.js To be Rewritten
 	os.Remove("App.js")
 	WriteToFile()
@@ -99,6 +108,21 @@ func WriteToTailwindConfig() {
 	}
 
 	fmt.Println("Tailwind config file created successfully")
+}
+
+func WriteToIndexjs(){
+	file, err := os.Create("index.js")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString("import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport { BrowserRouter } from 'react-router';\nimport App from './app';\n\nconst root = document.getElementById('root');\n\nReactDOM.createRoot(root).render(\n\t<BrowserRouter>\n\t\t<App />")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Index js file created successfully")
 }
 
 func WriteToIndexCss() {
