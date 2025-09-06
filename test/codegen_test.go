@@ -38,20 +38,30 @@ func TestBasePath(t *testing.T) {
 	}
 }
 
+func TestGenerateRoutes(t *testing.T) {
+	routes := []string{
+		"/Second Second",
+	}
+	expected := []string{
+		"\t<Routes>",
+		"\t\t<Route path=\"/Second\" element={<Second />} />",
+		"\t</Routes>",
+	}
+	if got, _ := codegen.GenerateRoutes(routes); !equal1(got, expected) {
+		t.Errorf("GenerateRoutes(%v) = %v; want %v", routes, got, expected)
+	}
+}
+
 func TestCodeGenTest(t *testing.T) {
 	lines := []string{
 		"div:",
 		"	h1:",
-		"		styles:",
-		"			text: 3xl",
-		"			font: bold",
-		"			underline: true",
+		"		tailwind_styles: text-3xl font-bold underline",
 		"							",
-		"		content:",
-		"			v: Hello World",
+		"		content: Hello World",
 	}
 
-	root, _ := parser.GenerateAST(lines)
+	root, _, _ := parser.GenerateAST(lines)
 	if root == nil {
 		t.Fatal("Failed to parse EHTML")
 	}
@@ -87,16 +97,28 @@ func TestCombine(t *testing.T) {
 
 	imports := []string {
 		"import Comp1 from \"./fellow\"",
+		"import { Route, Routes } from 'react-router'",
+	}
+
+	routes := []string {
+		"\t<Routes>",
+		"\t\t<Route path=\"/Second\" element={<Second />} />",
+		"\t</Routes>",
 	}
 
 	path := "/some/Path.js"
 
-	combinedOutput := codegen.Combine(path, lines, imports)
+	combinedOutput := codegen.Combine(path, lines, imports, routes)
 
 	expectedCombinedOutput := []string {
 		"import Comp1 from \"./fellow\"",
+		"import { Route, Routes } from 'react-router'",
 		"function " + codegen.GetBasePath(path) + "(props) {",
 		"\treturn(",
+		"\t<>",
+		"\t<Routes>",
+		"\t\t<Route path=\"/Second\" element={<Second />} />",
+		"\t</Routes>",
 		"\t<div",
 		"\t>",
 		"\t	<h1",
@@ -105,6 +127,7 @@ func TestCombine(t *testing.T) {
 		"\t		Hello World",
 		"\t	</h1>",
 		"\t</div>",
+		"\t</>",
 		"\t)",
 		"}",
 		"export default " + codegen.GetBasePath(path) + ";",

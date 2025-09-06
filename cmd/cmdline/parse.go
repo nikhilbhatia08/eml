@@ -30,8 +30,15 @@ func ParseCommandLineArgs(args []string) {
 			// code generation
 			for _, target := range targets {
 				fmt.Println(target.Path)
-				fmt.Println("Imports: ")
-				imports := codegen.GenerateImports(target.Imports)
+				// fmt.Println("Imports: ")
+				imports := codegen.GenerateImports(target.Imports, int32(len(target.Routes)))
+				routes, err := codegen.GenerateRoutes(target.Routes)
+				
+				if err != nil {
+					fmt.Println("Error generating routes:", err)
+					// TODO : This error message should be refined more 
+					continue
+				}
 				for _, import_s := range imports {
 					fmt.Println(import_s)
 				}
@@ -41,7 +48,7 @@ func ParseCommandLineArgs(args []string) {
 				}
 				os.Chdir("build")
 				os.Chdir("src")
-				err := codegen.WriteToFile(target.Path, lines, imports)
+				err = codegen.WriteToFile(target.Path, lines, imports, routes)
 				if err != nil {
 					fmt.Println("Error writing")
 				}

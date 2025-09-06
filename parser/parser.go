@@ -2,10 +2,12 @@ package parser
 
 import (
 	"bufio"
-	"os"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"unicode"
+
+	// "fmt"
 
 	"github.com/nikhilbhatia08/eml/parser/utils"
 )
@@ -16,6 +18,7 @@ import (
 // Recognized tags in Easy HyperText Markup Language (EHTML)
 // 1. div
 // 2. h1
+// 3. Link for routing purpose
 // Recognized styles in Easy HyperText Markup Language (EHTML)
 // 1. text(Represents the size of the text)
 // 2. font-bold(Represents bold text)
@@ -40,7 +43,7 @@ func Parser() []Target {
 
 			lines := ParseFile(path) // parse file lines
 
-			root, imports := GenerateAST(lines)
+			root, imports, routes := GenerateAST(lines)
 			if root == nil {
 				// There should be proper error message for this one 
 				// fmt.Println("Compilation failed for:", path)
@@ -53,6 +56,7 @@ func Parser() []Target {
 				Path: path[:len(path)-6] + ".js",
 				Root: root,
 				Imports: imports,
+				Routes: routes,
 			})
 		}
 		return nil
@@ -86,15 +90,18 @@ func ParseFile(filename string) []string {
 
 // As soon as the context finishes we need to pop the stack
 
-func GenerateAST(lines []string) (*Node, []string) {
+func GenerateAST(lines []string) (*Node, []string, []string) {
 	// root := &Node{Children: []*Node{}}
 	stack := utils.Stack[*Node]{}
 	var imports []string
+	// we need to make sure that the routes array is only of the App.ehtml file
+	var routes []string
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
 		spaces := utils.CountSpaces(line)
+		// fmt.Println(spaces)
 		if !utils.CheckForCharacter(line) {
 			continue
 		}
@@ -120,6 +127,8 @@ func GenerateAST(lines []string) (*Node, []string) {
 				}
 			}else if topNode.NodeType == IMPORT_TYPE {
 				imports = topNode.Imports
+			} else if topNode.NodeType == ROUTER_TYPE {
+				routes = topNode.Router
 			}
 		}
 		lineTokens := GetLineTokens(line)
@@ -128,6 +137,7 @@ func GenerateAST(lines []string) (*Node, []string) {
 			continue
 		}
 
+		// fmt.Println(lineTokens)
 		if stack.IsEmpty() {
 			// If it is empty it means that it has just started
 			tokenType := checkToken(lineTokens[0])
@@ -139,7 +149,19 @@ func GenerateAST(lines []string) (*Node, []string) {
 					Children: []*Node{},
 					TopLeveIndentation: spaces,
 					Info: utils.NewOrderedMap[string, *utils.OrderedMap[string, string]](),
+					DirectInfo: utils.NewOrderedMap[string, string](),
 					Imports: make([]string, 0),
+				}
+				stack.Push(newNode)
+			}else if tokenType == ROUTER_TYPE {
+				newNode := &Node {
+					NodeType:     tokenType,
+					Keyword:    lineTokens[0],
+					Children: []*Node{},
+					TopLeveIndentation: spaces,
+					Info: utils.NewOrderedMap[string, *utils.OrderedMap[string, string]](),
+					DirectInfo: utils.NewOrderedMap[string, string](),
+					Router: make([]string, 0),
 				}
 				stack.Push(newNode)
 			}else if tokenType != KEYWORD_TYPE {
@@ -151,6 +173,7 @@ func GenerateAST(lines []string) (*Node, []string) {
 					Children: []*Node{},
 					TopLeveIndentation: spaces,
 					Info: utils.NewOrderedMap[string, *utils.OrderedMap[string, string]](),
+					DirectInfo: utils.NewOrderedMap[string, string](),
 				}
 				stack.Push(newNode)
 				// fmt.Println("PUSHING ROOT NODE:", newNode.Keyword, stack.Size(), spaces)
@@ -166,7 +189,9 @@ func GenerateAST(lines []string) (*Node, []string) {
 					Children: []*Node{},
 					TopLeveIndentation: spaces,
 					Info: utils.NewOrderedMap[string, *utils.OrderedMap[string, string]](),
+					DirectInfo: utils.NewOrderedMap[string, string](),
 				}
+				// fmt.Println(lineTokens[0])
 				stack.Push(newNode)
 				// fmt.Println("PUSHING ROOT NODE:", newNode.Keyword, stack.Size(), spaces)		
 			}else if tokenType == CONFIG_TYPE {
@@ -174,6 +199,7 @@ func GenerateAST(lines []string) (*Node, []string) {
 					NodeType:     tokenType,
 					Keyword:    lineTokens[0],
 					Children: []*Node{},
+					DirectInfo: utils.NewOrderedMap[string, string](),
 					Info: utils.NewOrderedMap[string, *utils.OrderedMap[string, string]](),
 					TopLeveIndentation: spaces,
 				}
@@ -183,7 +209,17 @@ func GenerateAST(lines []string) (*Node, []string) {
 				// fmt.Println("GENERAL TYPE", lineTokens[0])
 				if !stack.IsEmpty(){
 					topNode := stack.Peek()
-					if topNode.NodeType == CONFIG_TYPE {
+					if topNode.NodeType == KEYWORD_TYPE {
+						var content_string string
+						for i := 1; i < len(lineTokens); i++ {
+							if i == len(lineTokens) - 1 {
+								content_string += lineTokens[i];
+							}else {
+								content_string += lineTokens[i] + " ";
+							}
+						}
+						topNode.DirectInfo.Set(lineTokens[0], content_string)
+					}else if topNode.NodeType == CONFIG_TYPE {
 						if len(lineTokens) < 2 {
 							// There should be error handling here
 						}else {
@@ -208,12 +244,23 @@ func GenerateAST(lines []string) (*Node, []string) {
 						for i := 0; i < len(lineTokens); i++ {
 							if i == len(lineTokens) - 1 {
 								// because this is the path like for example "./some/path/App.js"
+								// we need to check the valid path
 								import_string += "\"" + lineTokens[i] + "\""
 							}else {
 								import_string += lineTokens[i] + " ";
 							}							
 						}
 						topNode.Imports = append(topNode.Imports, import_string)
+					} else if topNode.NodeType == ROUTER_TYPE {
+						var route_string string
+						for i := 0; i < len(lineTokens); i++ {
+							if i == len(lineTokens) - 1 {
+								route_string += lineTokens[i]
+							} else {
+								route_string += lineTokens[i] + " "
+							}
+						}
+						topNode.Router = append(topNode.Router, route_string)
 					} else {
 						// There should be error handling here
 					}
@@ -230,6 +277,7 @@ func GenerateAST(lines []string) (*Node, []string) {
 			}
 			if topNode.NodeType == KEYWORD_TYPE {
 				// If the top node is a keyword type, we need to set the parent-child relationship
+				// fmt.Println(topNode.DirectInfo, topNode.NodeType)
 				if !stack.IsEmpty() {
 					parentNode := stack.Peek()
 					parentNode.Children = append(parentNode.Children, topNode)
@@ -248,10 +296,10 @@ func GenerateAST(lines []string) (*Node, []string) {
 	}
 
 	if !stack.IsEmpty() {
-		return stack.Peek(), imports
+		return stack.Peek(), imports, routes
 	}
 
-	return stack.Peek(), imports
+	return stack.Peek(), imports, routes
 }
 
 func checkToken(token string) int {
@@ -261,6 +309,8 @@ func checkToken(token string) int {
 		return CONFIG_TYPE
 	}else if import_s[token] {
 		return IMPORT_TYPE
+	} else if router_s[token] {
+		return ROUTER_TYPE
 	}
 	return GENERAL_TYPE
 }

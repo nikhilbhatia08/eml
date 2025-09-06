@@ -5,10 +5,12 @@ import "unicode"
 func CountSpaces(line string) int {
 	count := 0
 	for i := 0; i < len(line); i++ {
-		if unicode.IsSpace(rune(line[i])) {
+		if line[i] == '\t' {
+			count += 4
+		}else if unicode.IsSpace(rune(line[i])){
 			count++
-		}else {
-			break
+		} else {
+			break;
 		}
 	}
 	return count

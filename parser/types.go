@@ -4,15 +4,19 @@ var (
 	Keywords = map[string]bool{
 		"div":     true,
 		"h1":     true,
+		"Link":   true,
 	}
 
 	import_s = map[string]bool {
 		"import": true,
 	}
 
+	router_s = map[string]bool {
+		"router": true,
+	}
+
 	config = map[string]bool {
 		"styles": true,
-		"content": true,
 	}
 )
 
@@ -21,4 +25,5 @@ var (
 	CONFIG_TYPE       = 2
 	GENERAL_TYPE      = 3
 	IMPORT_TYPE  	  = 4
+	ROUTER_TYPE       = 5
 )

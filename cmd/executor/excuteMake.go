@@ -117,7 +117,7 @@ func WriteToIndexjs(){
 	}
 	defer file.Close()
 
-	_, err = file.WriteString("import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport { BrowserRouter } from 'react-router';\nimport App from './app';\n\nconst root = document.getElementById('root');\n\nReactDOM.createRoot(root).render(\n\t<BrowserRouter>\n\t\t<App />")
+	_, err = file.WriteString("import React from 'react';\nimport './index.css'\nimport ReactDOM from 'react-dom/client';\nimport { BrowserRouter } from 'react-router';\nimport App from './App';\n\nconst root = document.getElementById('root');\n\nReactDOM.createRoot(root).render(\n\t<BrowserRouter>\n\t\t<App />\n\t</BrowserRouter>\n);")
 	if err != nil {
 		panic(err)
 	}
